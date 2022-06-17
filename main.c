@@ -79,6 +79,16 @@ void print_pcd_table_header(PCD_TABLE_HEADER* pcd_table_header)
     printf("sizeof(PCD_TABLE_HEADER) = 0x%lx\n", sizeof(PCD_TABLE_HEADER_v6));
 }
 
+void print_pcd_table_guids(char* db, PCD_TABLE_HEADER* pcd_table_header)
+{
+  printf("GUIDs in PCD_TABLE:\n");
+  EFI_GUID* Guids = (EFI_GUID*)&db[pcd_table_header->GuidTableOffset];
+  for (int i=0; i<pcd_table_header->GuidTableCount; i++) {
+    print_guid(Guids[i]);
+    printf("\n");
+  }
+}
+
 char* get_token_type(UINT32 Token)
 {
  if ((Token & PCD_TYPE_ALL_SET) == PCD_TYPE_STRING)
@@ -117,8 +127,9 @@ char* get_datum2_type(UINT32 Token)
     return "";
 }
 
-void print_dynamic_ex(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 i, EFI_GUID* Guids)
+void print_dynamic_ex(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 i)
 {
+  EFI_GUID* Guids = (EFI_GUID*)&db[pcd_table_header->GuidTableOffset];
   for (int j=0; j<pcd_table_header->ExTokenCount; j++) {
     DYNAMICEX_MAPPING* DynamicEx = ((DYNAMICEX_MAPPING*)&db[pcd_table_header->ExMapTableOffset]) + j;
     if ((i+1) == DynamicEx->TokenNumber) {
@@ -186,13 +197,9 @@ int main(int argc, char** argv)
   print_pcd_table_header(&pcd_table_header);
   printf("_____\n");
 
-  printf("Guid table:\n");
-  EFI_GUID* Guids = (EFI_GUID*)&db[pcd_table_header.GuidTableOffset];
-  for (int i=0; i<pcd_table_header.GuidTableCount; i++) {
-    print_guid(Guids[i]);
-    printf("\n");
-  }
+  print_pcd_table_guids(db, &pcd_table_header);
   printf("_____\n");
+
   printf("LocalTokenNumberTable:\n");
   for (int i=0; i<pcd_table_header.LocalTokenCount; i++) {
     UINT32 Token = *(UINT32*)&db[pcd_table_header.LocalTokenNumberTableOffset + i*sizeof(UINT32)];
@@ -201,7 +208,7 @@ int main(int argc, char** argv)
                                                                      get_datum2_type(Token), Token & PCD_DATABASE_OFFSET_MASK);
 
 
-    print_dynamic_ex(db, &pcd_table_header, i, Guids);
+    print_dynamic_ex(db, &pcd_table_header, i);
 
     if ((Token & PCD_DATABASE_OFFSET_MASK) >= sb.st_size) {
       printf("0 - unitialized\n");
@@ -218,7 +225,8 @@ int main(int argc, char** argv)
       printf("HII_STRING\n");
       VARIABLE_HEAD* VariableHead = (VARIABLE_HEAD *)(db + (Token & PCD_DATABASE_OFFSET_MASK));
       printf("Guid:\n");
-      print_guid(Guids[VariableHead->GuidTableIndex]);
+      EFI_GUID* Guid = (EFI_GUID*)(&db[pcd_table_header.GuidTableOffset]) + VariableHead->GuidTableIndex;
+      print_guid(*Guid);
       printf("\n");
       printf("Name:\n");
       UINT16* Name = (UINT16 *)(&db[pcd_table_header.StringTableOffset + VariableHead->StringIndex]);
