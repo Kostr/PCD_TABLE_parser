@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -136,13 +137,17 @@ void print_dynamic_ex(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 i)
       printf("DynamicEx.ExTokenNumber = 0x%08x\n", DynamicEx->ExTokenNumber);
       printf("DynamicEx.TokenNumber = 0x%08x\n", DynamicEx->TokenNumber);
       printf("DynamicEx.ExGuidIndex = 0x%08x (", DynamicEx->ExGuidIndex);
-      print_guid(Guids[DynamicEx->ExGuidIndex]);
+      if ((DynamicEx->ExGuidIndex) < (pcd_table_header->GuidTableCount))
+        print_guid(Guids[DynamicEx->ExGuidIndex]);
+      else
+        printf("Error! GUID index is wrong!");
       printf(")\n");
     }
   }
 
-/*
-  if (pcd_table_header.PcdNameTableOffset) {
+  if (pcd_table_header->PcdNameTableOffset) {
+      printf("TBD - PcdNameTable parsing is not implemented\n");
+      /*
       PCD_NAME_INDEX PcdNameIndex = *(PCD_NAME_INDEX*)&db[pcd_table_header.PcdNameTableOffset + sizeof(PCD_NAME_INDEX)*(DynamicEx[i].TokenNumber-1)];
       printf("PcdNameIndex.TokenSpaceCNameIndex=%d\n", PcdNameIndex.TokenSpaceCNameIndex);
       printf("PcdNameIndex.PcdCNameIndex=%d\n", PcdNameIndex.PcdCNameIndex);
@@ -150,12 +155,13 @@ void print_dynamic_ex(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 i)
       char* PcdName = (char*)&db[pcd_table_header.StringTableOffset + PcdNameIndex.PcdCNameIndex];
       printf("TokenSpaceName = %s\n", TokenSpaceName);
       printf("PcdName = %s\n", PcdName);
+      */
   }
-*/
 }
 
 static int SizeTableIndex=0;
 
+const bool debug = false;
 
 int main(int argc, char** argv)
 {
@@ -194,11 +200,13 @@ int main(int argc, char** argv)
   if (fill_pcd_table_header(db, &pcd_table_header))
     return(EXIT_FAILURE);
 
-  print_pcd_table_header(&pcd_table_header);
-  printf("_____\n");
+  if (debug) {
+    print_pcd_table_header(&pcd_table_header);
+    printf("_____\n");
 
-  print_pcd_table_guids(db, &pcd_table_header);
-  printf("_____\n");
+    print_pcd_table_guids(db, &pcd_table_header);
+    printf("_____\n");
+  }
 
   printf("LocalTokenNumberTable:\n");
   for (int i=0; i<pcd_table_header.LocalTokenCount; i++) {
