@@ -152,6 +152,8 @@ void print_guid(EFI_GUID guid)
     printf("Guid print error!");
 
   for (int i=0; i<(sizeof(predefined_guids)/sizeof(predefined_guids[0])); i++)
-    if (!strcmp(guid_str, predefined_guids[i].guid_str))
+    if (!strcmp(guid_str, predefined_guids[i].guid_str)) {
       printf(" [%s]", predefined_guids[i].name);
+      break;
+    }
 }

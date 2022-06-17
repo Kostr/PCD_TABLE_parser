@@ -145,20 +145,32 @@ void print_local_token_value(UINT32 Token)
   printf("\n");
 }
 
-void print_dynamic_ex(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 i)
+void print_guid_by_index(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT16 guid_index)
 {
   EFI_GUID* Guids = (EFI_GUID*)&db[pcd_table_header->GuidTableOffset];
-  for (int j=0; j<pcd_table_header->ExTokenCount; j++) {
-    DYNAMICEX_MAPPING* DynamicEx = ((DYNAMICEX_MAPPING*)&db[pcd_table_header->ExMapTableOffset]) + j;
-    if ((i+1) == DynamicEx->TokenNumber) {
-      printf("DynamicEx.ExTokenNumber = 0x%08x\n", DynamicEx->ExTokenNumber);
-      printf("DynamicEx.TokenNumber = 0x%08x\n", DynamicEx->TokenNumber);
-      printf("DynamicEx.ExGuidIndex = 0x%08x (", DynamicEx->ExGuidIndex);
-      if ((DynamicEx->ExGuidIndex) < (pcd_table_header->GuidTableCount))
-        print_guid(Guids[DynamicEx->ExGuidIndex]);
-      else
-        printf("Error! GUID index is wrong!");
-      printf(")\n");
+  if (guid_index < (pcd_table_header->GuidTableCount))
+    print_guid(Guids[guid_index]);
+  else
+    printf("Error! GUID index is wrong!");
+}
+
+void print_dynamic_ex(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 local_token_index)
+{
+  for (int i=0; i<pcd_table_header->ExTokenCount; i++) {
+    DYNAMICEX_MAPPING* DynamicEx = ((DYNAMICEX_MAPPING*)&db[pcd_table_header->ExMapTableOffset]) + i;
+    if ((local_token_index+1) == DynamicEx->TokenNumber) {
+      if (debug) {
+        printf("DynamicEx.ExTokenNumber = 0x%08x\n", DynamicEx->ExTokenNumber);
+        printf("DynamicEx.TokenNumber = 0x%08x\n", DynamicEx->TokenNumber);
+        printf("DynamicEx.ExGuidIndex = 0x%08x (", DynamicEx->ExGuidIndex);
+        print_guid_by_index(db, pcd_table_header, DynamicEx->ExGuidIndex);
+        printf(")\n");
+      } else {
+        printf("DynamicEx Token = 0x%08x\n", DynamicEx->ExTokenNumber);
+        printf("DynamicEx GUID  = ");
+        print_guid_by_index(db, pcd_table_header, DynamicEx->ExGuidIndex);
+        printf("\n");
+      }
     }
   }
 
@@ -247,8 +259,7 @@ int main(int argc, char** argv)
       printf("HII_STRING\n");
       VARIABLE_HEAD* VariableHead = (VARIABLE_HEAD *)(db + (Token & PCD_DATABASE_OFFSET_MASK));
       printf("Guid:\n");
-      EFI_GUID* Guid = (EFI_GUID*)(&db[pcd_table_header.GuidTableOffset]) + VariableHead->GuidTableIndex;
-      print_guid(*Guid);
+      print_guid_by_index(db, &pcd_table_header, VariableHead->GuidTableIndex);
       printf("\n");
       printf("Name:\n");
       UINT16* Name = (UINT16 *)(&db[pcd_table_header.StringTableOffset + VariableHead->StringIndex]);
