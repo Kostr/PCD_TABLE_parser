@@ -5,8 +5,6 @@ typedef UINT64 SKU_ID;
 typedef UINT32 TABLE_OFFSET;
 typedef EFI_GUID GUID;
 
-#define VER7
-#ifdef VER7
 typedef struct {
   GUID            Signature;                    // PcdDataBaseGuid.
   UINT32          BuildVersion;
@@ -26,7 +24,7 @@ typedef struct {
   UINT16          GuidTableCount;               // The Number of Guid in GuidTable.
   UINT8           Pad[6];                       // Pad bytes to satisfy the alignment.
 } PCD_TABLE_HEADER;
-#else
+
 // https://github.com/tianocore/edk2/commit/7c73626513238176bdd16dca14fcf3f9e10bcc81
 typedef struct {
   GUID            Signature;                    // PcdDataBaseGuid.
@@ -45,8 +43,7 @@ typedef struct {
   UINT16          ExTokenCount;                 // EX_TOKEN_NUMBER for DynamicEx.
   UINT16          GuidTableCount;               // The Number of Guid in GuidTable.
   UINT8           Pad[2];                       // Pad bytes to satisfy the alignment.
-} PCD_TABLE_HEADER;
-#endif
+} PCD_TABLE_HEADER_v6;
 
 typedef struct  {
   UINT32    ExTokenNumber;

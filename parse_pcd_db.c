@@ -94,23 +94,59 @@ int main(int argc, char** argv)
   if (fd == -1)
   {
     printf("Error! Can't open file %s\n", argv[1]);
-    exit(EXIT_FAILURE);
+    return(EXIT_FAILURE);
   }
 
   struct stat sb;
   if (fstat(fd, &sb) == -1) {
-    printf("fstat error\n");
-    exit(EXIT_FAILURE);
+    printf("Error! fstat error\n");
+    return(EXIT_FAILURE);
   }
 
+  if (sb.st_size < sizeof(PCD_TABLE_HEADER)) {
+    printf("Error! File is too small for PCD database\n");
+    return(EXIT_FAILURE);
+  }
+
+  char *db = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  if (db == MAP_FAILED){
+    printf("Error! Mapping Failed\n");
+    return(EXIT_FAILURE);
+  }
+  close(fd);
+
   PCD_TABLE_HEADER pcd_table_header;
-  ssize_t size = read(fd, &pcd_table_header, sizeof(pcd_table_header));
+  memcpy(&pcd_table_header, db, sizeof(pcd_table_header));
+  if (pcd_table_header.BuildVersion != 7) {
+    if (pcd_table_header.BuildVersion == 6) {
+      PCD_TABLE_HEADER_v6* pcd_table_header_v6 = (PCD_TABLE_HEADER_v6*)db;
+      pcd_table_header.Signature = pcd_table_header_v6->Signature;
+      pcd_table_header.BuildVersion = pcd_table_header_v6->BuildVersion;
+      pcd_table_header.Length = pcd_table_header_v6->Length;
+      pcd_table_header.SystemSkuId = pcd_table_header_v6->SystemSkuId;
+      pcd_table_header.LengthForAllSkus = 0;
+      pcd_table_header.UninitDataBaseSize = pcd_table_header_v6->UninitDataBaseSize;
+      pcd_table_header.LocalTokenNumberTableOffset = pcd_table_header_v6->LocalTokenNumberTableOffset;
+      pcd_table_header.ExMapTableOffset = pcd_table_header_v6->ExMapTableOffset;
+      pcd_table_header.GuidTableOffset = pcd_table_header_v6->GuidTableOffset;
+      pcd_table_header.StringTableOffset = pcd_table_header_v6->StringTableOffset;
+      pcd_table_header.SizeTableOffset = pcd_table_header_v6->SizeTableOffset;
+      pcd_table_header.SkuIdTableOffset = pcd_table_header_v6->SkuIdTableOffset;
+      pcd_table_header.PcdNameTableOffset = pcd_table_header_v6->PcdNameTableOffset;
+      pcd_table_header.LocalTokenCount = pcd_table_header_v6->LocalTokenCount;
+      pcd_table_header.ExTokenCount = pcd_table_header_v6->ExTokenCount;
+      pcd_table_header.GuidTableCount = pcd_table_header_v6->GuidTableCount;
+    } else {
+      printf("PCD DB Build version is %d\n", pcd_table_header.BuildVersion);
+      printf("Currently only versions 7 and 6 are supported\n");
+    }
+  }
+
   printf("BuildVersion = %d\n", pcd_table_header.BuildVersion);
   printf("Length = %d\n", pcd_table_header.Length);
   printf("SystemSkuId = %ld\n", pcd_table_header.SystemSkuId);
-#ifdef VER7
-  printf("LengthForAllSkus = %d\n", pcd_table_header.LengthForAllSkus);
-#endif
+  if (pcd_table_header.BuildVersion == 7)
+    printf("LengthForAllSkus = %d\n", pcd_table_header.LengthForAllSkus);
   printf("UninitDataBaseSize = %d\n", pcd_table_header.UninitDataBaseSize);
   printf("LocalTokenNumberTableOffset = 0x%x\n", pcd_table_header.LocalTokenNumberTableOffset);
   printf("ExMapTableOffset = 0x%x\n", pcd_table_header.ExMapTableOffset);
@@ -123,16 +159,12 @@ int main(int argc, char** argv)
   printf("ExTokenCount = %d\n", pcd_table_header.ExTokenCount);
   printf("GuidTableCount = %d\n", pcd_table_header.GuidTableCount);
 
-  printf("sizeof(PCD_TABLE_HEADER) = 0x%lx\n", sizeof(PCD_TABLE_HEADER));
+  if (pcd_table_header.BuildVersion == 7)
+    printf("sizeof(PCD_TABLE_HEADER) = 0x%lx\n", sizeof(PCD_TABLE_HEADER));
+  else if (pcd_table_header.BuildVersion == 6)
+    printf("sizeof(PCD_TABLE_HEADER) = 0x%lx\n", sizeof(PCD_TABLE_HEADER_v6));
   printf("File size = %ld\n", sb.st_size);
 
-
-  char *db = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-  if (db == MAP_FAILED){
-    printf("Mapping Failed\n");
-    return 1;
-  }
-  close(fd);
 
   printf("_____\n");
   printf("Guid table:\n");
