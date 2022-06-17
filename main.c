@@ -15,6 +15,70 @@
 //const char* filename = "Build/OvmfX64/DEBUG_GCC5/X64/MdeModulePkg/Universal/PCD/Dxe/Pcd/OUTPUT/DXEPcdDataBase.raw";
 
 
+int fill_pcd_table_header(char* db, PCD_TABLE_HEADER* pcd_table_header)
+{
+  memcpy(pcd_table_header, db, sizeof(PCD_TABLE_HEADER));
+
+  EFI_GUID gPcdDataBaseSignatureGuid = { 0x3c7d193c, 0x682c, 0x4c14, { 0xa6, 0x8f, 0x55, 0x2d, 0xea, 0x4f, 0x43, 0x7e }};
+  if (memcmp(&gPcdDataBaseSignatureGuid, &(pcd_table_header->Signature), sizeof(EFI_GUID))) {
+    printf("Error! PCD_TABLE_HEADER doesn't contain valid GUID\n");
+    return -1;
+  }
+
+  if (pcd_table_header->BuildVersion != 7) {
+    if (pcd_table_header->BuildVersion == 6) {
+      PCD_TABLE_HEADER_v6* pcd_table_header_v6 = (PCD_TABLE_HEADER_v6*)db;
+      pcd_table_header->Signature = pcd_table_header_v6->Signature;
+      pcd_table_header->BuildVersion = pcd_table_header_v6->BuildVersion;
+      pcd_table_header->Length = pcd_table_header_v6->Length;
+      pcd_table_header->SystemSkuId = pcd_table_header_v6->SystemSkuId;
+      pcd_table_header->LengthForAllSkus = 0;
+      pcd_table_header->UninitDataBaseSize = pcd_table_header_v6->UninitDataBaseSize;
+      pcd_table_header->LocalTokenNumberTableOffset = pcd_table_header_v6->LocalTokenNumberTableOffset;
+      pcd_table_header->ExMapTableOffset = pcd_table_header_v6->ExMapTableOffset;
+      pcd_table_header->GuidTableOffset = pcd_table_header_v6->GuidTableOffset;
+      pcd_table_header->StringTableOffset = pcd_table_header_v6->StringTableOffset;
+      pcd_table_header->SizeTableOffset = pcd_table_header_v6->SizeTableOffset;
+      pcd_table_header->SkuIdTableOffset = pcd_table_header_v6->SkuIdTableOffset;
+      pcd_table_header->PcdNameTableOffset = pcd_table_header_v6->PcdNameTableOffset;
+      pcd_table_header->LocalTokenCount = pcd_table_header_v6->LocalTokenCount;
+      pcd_table_header->ExTokenCount = pcd_table_header_v6->ExTokenCount;
+      pcd_table_header->GuidTableCount = pcd_table_header_v6->GuidTableCount;
+    } else {
+      printf("PCD DB Build version is %d\n", pcd_table_header->BuildVersion);
+      printf("Currently only versions 7 and 6 are supported\n");
+      return -2;
+    }
+  }
+  return 0;
+}
+
+void print_pcd_table_header(PCD_TABLE_HEADER* pcd_table_header)
+{
+  printf("PCD_TABLE_HEADER:\n");
+  printf("BuildVersion = %d\n", pcd_table_header->BuildVersion);
+  printf("Length = %d\n", pcd_table_header->Length);
+  printf("SystemSkuId = %ld\n", pcd_table_header->SystemSkuId);
+  if (pcd_table_header->BuildVersion == 7)
+    printf("LengthForAllSkus = %d\n", pcd_table_header->LengthForAllSkus);
+  printf("UninitDataBaseSize = %d\n", pcd_table_header->UninitDataBaseSize);
+  printf("LocalTokenNumberTableOffset = 0x%x\n", pcd_table_header->LocalTokenNumberTableOffset);
+  printf("ExMapTableOffset = 0x%x\n", pcd_table_header->ExMapTableOffset);
+  printf("GuidTableOffset = 0x%x\n", pcd_table_header->GuidTableOffset);
+  printf("StringTableOffset = 0x%x\n", pcd_table_header->StringTableOffset);
+  printf("SizeTableOffset = 0x%x\n", pcd_table_header->SizeTableOffset);
+  printf("SkuIdTableOffset = 0x%x\n", pcd_table_header->SkuIdTableOffset);
+  printf("PcdNameTableOffset = 0x%x\n", pcd_table_header->PcdNameTableOffset);
+  printf("LocalTokenCount = %d\n", pcd_table_header->LocalTokenCount);
+  printf("ExTokenCount = %d\n", pcd_table_header->ExTokenCount);
+  printf("GuidTableCount = %d\n", pcd_table_header->GuidTableCount);
+
+  if (pcd_table_header->BuildVersion == 7)
+    printf("sizeof(PCD_TABLE_HEADER) = 0x%lx\n", sizeof(PCD_TABLE_HEADER));
+  else if (pcd_table_header->BuildVersion == 6)
+    printf("sizeof(PCD_TABLE_HEADER) = 0x%lx\n", sizeof(PCD_TABLE_HEADER_v6));
+}
+
 char* get_token_type(UINT32 Token)
 {
  if ((Token & PCD_TYPE_ALL_SET) == PCD_TYPE_STRING)
@@ -116,64 +180,12 @@ int main(int argc, char** argv)
   close(fd);
 
   PCD_TABLE_HEADER pcd_table_header;
-  memcpy(&pcd_table_header, db, sizeof(pcd_table_header));
-
-  EFI_GUID gPcdDataBaseSignatureGuid = { 0x3c7d193c, 0x682c, 0x4c14, { 0xa6, 0x8f, 0x55, 0x2d, 0xea, 0x4f, 0x43, 0x7e }};
-  if (memcmp(&gPcdDataBaseSignatureGuid, &pcd_table_header.Signature, sizeof(EFI_GUID))) {
-    printf("Error! PCD_TABLE_HEADER doesn't contain valid GUID\n");
+  if (fill_pcd_table_header(db, &pcd_table_header))
     return(EXIT_FAILURE);
-  }
 
-  if (pcd_table_header.BuildVersion != 7) {
-    if (pcd_table_header.BuildVersion == 6) {
-      PCD_TABLE_HEADER_v6* pcd_table_header_v6 = (PCD_TABLE_HEADER_v6*)db;
-      pcd_table_header.Signature = pcd_table_header_v6->Signature;
-      pcd_table_header.BuildVersion = pcd_table_header_v6->BuildVersion;
-      pcd_table_header.Length = pcd_table_header_v6->Length;
-      pcd_table_header.SystemSkuId = pcd_table_header_v6->SystemSkuId;
-      pcd_table_header.LengthForAllSkus = 0;
-      pcd_table_header.UninitDataBaseSize = pcd_table_header_v6->UninitDataBaseSize;
-      pcd_table_header.LocalTokenNumberTableOffset = pcd_table_header_v6->LocalTokenNumberTableOffset;
-      pcd_table_header.ExMapTableOffset = pcd_table_header_v6->ExMapTableOffset;
-      pcd_table_header.GuidTableOffset = pcd_table_header_v6->GuidTableOffset;
-      pcd_table_header.StringTableOffset = pcd_table_header_v6->StringTableOffset;
-      pcd_table_header.SizeTableOffset = pcd_table_header_v6->SizeTableOffset;
-      pcd_table_header.SkuIdTableOffset = pcd_table_header_v6->SkuIdTableOffset;
-      pcd_table_header.PcdNameTableOffset = pcd_table_header_v6->PcdNameTableOffset;
-      pcd_table_header.LocalTokenCount = pcd_table_header_v6->LocalTokenCount;
-      pcd_table_header.ExTokenCount = pcd_table_header_v6->ExTokenCount;
-      pcd_table_header.GuidTableCount = pcd_table_header_v6->GuidTableCount;
-    } else {
-      printf("PCD DB Build version is %d\n", pcd_table_header.BuildVersion);
-      printf("Currently only versions 7 and 6 are supported\n");
-    }
-  }
-
-  printf("BuildVersion = %d\n", pcd_table_header.BuildVersion);
-  printf("Length = %d\n", pcd_table_header.Length);
-  printf("SystemSkuId = %ld\n", pcd_table_header.SystemSkuId);
-  if (pcd_table_header.BuildVersion == 7)
-    printf("LengthForAllSkus = %d\n", pcd_table_header.LengthForAllSkus);
-  printf("UninitDataBaseSize = %d\n", pcd_table_header.UninitDataBaseSize);
-  printf("LocalTokenNumberTableOffset = 0x%x\n", pcd_table_header.LocalTokenNumberTableOffset);
-  printf("ExMapTableOffset = 0x%x\n", pcd_table_header.ExMapTableOffset);
-  printf("GuidTableOffset = 0x%x\n", pcd_table_header.GuidTableOffset);
-  printf("StringTableOffset = 0x%x\n", pcd_table_header.StringTableOffset);
-  printf("SizeTableOffset = 0x%x\n", pcd_table_header.SizeTableOffset);
-  printf("SkuIdTableOffset = 0x%x\n", pcd_table_header.SkuIdTableOffset);
-  printf("PcdNameTableOffset = 0x%x\n", pcd_table_header.PcdNameTableOffset);
-  printf("LocalTokenCount = %d\n", pcd_table_header.LocalTokenCount);
-  printf("ExTokenCount = %d\n", pcd_table_header.ExTokenCount);
-  printf("GuidTableCount = %d\n", pcd_table_header.GuidTableCount);
-
-  if (pcd_table_header.BuildVersion == 7)
-    printf("sizeof(PCD_TABLE_HEADER) = 0x%lx\n", sizeof(PCD_TABLE_HEADER));
-  else if (pcd_table_header.BuildVersion == 6)
-    printf("sizeof(PCD_TABLE_HEADER) = 0x%lx\n", sizeof(PCD_TABLE_HEADER_v6));
-  printf("File size = %ld\n", sb.st_size);
-
-
+  print_pcd_table_header(&pcd_table_header);
   printf("_____\n");
+
   printf("Guid table:\n");
   EFI_GUID* Guids = (EFI_GUID*)&db[pcd_table_header.GuidTableOffset];
   for (int i=0; i<pcd_table_header.GuidTableCount; i++) {
