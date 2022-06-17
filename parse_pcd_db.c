@@ -9,6 +9,7 @@
 #include "edk2_types.h"
 #include "guids.h"
 #include "pcd_table.h"
+#include "utils.h"
 
 //const char* filename = "Build/OvmfX64/DEBUG_GCC5/X64/MdeModulePkg/Universal/PCD/Pei/Pcd/OUTPUT/PEIPcdDataBase.raw";
 //const char* filename = "Build/OvmfX64/DEBUG_GCC5/X64/MdeModulePkg/Universal/PCD/Dxe/Pcd/OUTPUT/DXEPcdDataBase.raw";
@@ -50,42 +51,6 @@ char* get_datum2_type(UINT32 Token)
     return "Bool";
   else
     return "";
-}
-
-void print_buffer(uint8_t* buf, ssize_t Size)
-{
-  ssize_t i = 0;
-  while (i < Size) {
-    printf("%02x ", buf[i]);
-    i++;
-    if (!(i%16)) {
-      printf(" | ");
-      for (int j=16; j>0; j--)
-        if ((buf[i-j] >= 0x20) && (buf[i-j] < 0x7E))
-          printf("%c", buf[i-j]);
-        else
-          printf(".");
-      printf("\n");
-    }
-  }
-  
-  if (i%16) {
-    for (int j=0; j<=15; j++) {
-      if ((i+j)%16)
-        printf("   ");
-      else
-        break;
-    }
-    printf(" | ");
-    
-    for (int j=(i%16); j>0; j--) {
-      if ((buf[i-j] >= 0x20) && (buf[i-j] < 0x7E))
-        printf("%c", buf[i-j]);
-      else
-        printf(".");
-    }
-  }
-  printf("\n");
 }
 
 void print_dynamic_ex(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 i, EFI_GUID* Guids)
