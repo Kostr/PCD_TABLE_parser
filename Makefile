@@ -1,4 +1,4 @@
-parse_pcd_db: parse_pcd_db.o guids.o utils.o
+parse_pcd_db: main.o guids.o utils.o
 	gcc $^ -o $@
 
 .PHONY: clean
