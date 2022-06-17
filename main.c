@@ -117,6 +117,13 @@ int main(int argc, char** argv)
 
   PCD_TABLE_HEADER pcd_table_header;
   memcpy(&pcd_table_header, db, sizeof(pcd_table_header));
+
+  EFI_GUID gPcdDataBaseSignatureGuid = { 0x3c7d193c, 0x682c, 0x4c14, { 0xa6, 0x8f, 0x55, 0x2d, 0xea, 0x4f, 0x43, 0x7e }};
+  if (memcmp(&gPcdDataBaseSignatureGuid, &pcd_table_header.Signature, sizeof(EFI_GUID))) {
+    printf("Error! PCD_TABLE_HEADER doesn't contain valid GUID\n");
+    return(EXIT_FAILURE);
+  }
+
   if (pcd_table_header.BuildVersion != 7) {
     if (pcd_table_header.BuildVersion == 6) {
       PCD_TABLE_HEADER_v6* pcd_table_header_v6 = (PCD_TABLE_HEADER_v6*)db;
