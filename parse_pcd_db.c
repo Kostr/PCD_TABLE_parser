@@ -389,12 +389,19 @@ void print_dynamic_ex(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 i, EF
 
 static int SizeTableIndex=0;
 
+
 int main(int argc, char** argv)
 {
+  if (argc != 2) {
+    printf("Usage: %s <PCD_DB.raw>\n", argv[0]);
+    printf("Program to parse PCD_DB.raw file\n");
+    return(EXIT_FAILURE);
+  }
+
   int fd = open(argv[1], O_RDONLY);
   if (fd == -1)
   {
-    printf("Error! Can't open file %s\n", filename);
+    printf("Error! Can't open file %s\n", argv[1]);
     exit(EXIT_FAILURE);
   }
 
