@@ -15,6 +15,8 @@
 //const char* filename = "Build/OvmfX64/DEBUG_GCC5/X64/MdeModulePkg/Universal/PCD/Pei/Pcd/OUTPUT/PEIPcdDataBase.raw";
 //const char* filename = "Build/OvmfX64/DEBUG_GCC5/X64/MdeModulePkg/Universal/PCD/Dxe/Pcd/OUTPUT/DXEPcdDataBase.raw";
 
+const bool debug = false;
+
 
 int fill_pcd_table_header(char* db, PCD_TABLE_HEADER* pcd_table_header)
 {
@@ -125,7 +127,22 @@ char* get_datum2_type(UINT32 Token)
   if ((Token & PCD_DATUM_TYPE_UINT8_BOOLEAN) == PCD_DATUM_TYPE_UINT8_BOOLEAN)
     return "Bool";
   else
-    return "";
+    return NULL;
+}
+
+void print_local_token_value(UINT32 Token)
+{
+  if (debug)
+    printf("Token=0x%08x:", Token);
+
+  printf("Token type=%s; Datum type=%s", get_token_type(Token), get_datum_type(Token));
+  if (get_datum2_type(Token))
+    printf(" (%s)", get_datum2_type(Token));
+
+  if (debug)
+    printf("; Offset=0x%08x", Token & PCD_DATABASE_OFFSET_MASK);
+
+  printf("\n");
 }
 
 void print_dynamic_ex(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 i)
@@ -161,7 +178,6 @@ void print_dynamic_ex(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 i)
 
 static int SizeTableIndex=0;
 
-const bool debug = false;
 
 int main(int argc, char** argv)
 {
@@ -212,10 +228,8 @@ int main(int argc, char** argv)
   for (int i=0; i<pcd_table_header.LocalTokenCount; i++) {
     UINT32 Token = *(UINT32*)&db[pcd_table_header.LocalTokenNumberTableOffset + i*sizeof(UINT32)];
     printf("\n%d:\n", i);
-    printf("Token=0x%08x: Type=%s; DatumType=%s;%s; Offset=0x%08x\n", Token, get_token_type(Token), get_datum_type(Token),
-                                                                     get_datum2_type(Token), Token & PCD_DATABASE_OFFSET_MASK);
 
-
+    print_local_token_value(Token);
     print_dynamic_ex(db, &pcd_table_header, i);
 
     if ((Token & PCD_DATABASE_OFFSET_MASK) >= sb.st_size) {
