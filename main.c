@@ -133,16 +133,16 @@ char* get_datum2_type(UINT32 Token)
 void print_local_token_value(UINT32 Token)
 {
   if (debug)
-    printf("Token=0x%08x:", Token);
+    printf("Token = 0x%08x\n", Token);
 
-  printf("Token type=%s; Datum type=%s", get_token_type(Token), get_datum_type(Token));
+  printf("Token type = %s\n", get_token_type(Token));
+  printf("Datum type = %s", get_datum_type(Token));
   if (get_datum2_type(Token))
     printf(" (%s)", get_datum2_type(Token));
+  printf("\n");
 
   if (debug)
-    printf("; Offset=0x%08x", Token & PCD_DATABASE_OFFSET_MASK);
-
-  printf("\n");
+    printf("Offset=0x%08x\n", Token & PCD_DATABASE_OFFSET_MASK);
 }
 
 void print_guid_by_index(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT16 guid_index)
@@ -258,7 +258,7 @@ int main(int argc, char** argv)
     switch (Token & PCD_TYPE_ALL_SET) {
       case PCD_TYPE_HII:
       case PCD_TYPE_HII|PCD_TYPE_STRING:
-        printf("HII_STRING\n");
+        printf("HII VARIABLE\n");
         VARIABLE_HEAD* VariableHead = (VARIABLE_HEAD *)(db + (Token & PCD_DATABASE_OFFSET_MASK));
         printf("Guid:\n");
         print_guid_by_index(db, &pcd_table_header, VariableHead->GuidTableIndex);
@@ -270,10 +270,12 @@ int main(int argc, char** argv)
           NameLength++;
         }
         print_buffer((UINT8*)Name, (NameLength+1)*2);
-        printf("DefaultValueOffset=0x%08x\n", VariableHead->DefaultValueOffset);
-        printf("HII Offset=0x%04x\n", VariableHead->Offset);
-        printf("Attributes=0x%08x\n", VariableHead->Attributes);
-        printf("Property=0x%04x\n",  VariableHead->Property);
+        if (debug) {
+          printf("DefaultValueOffset=0x%08x\n", VariableHead->DefaultValueOffset);
+          printf("Attributes=0x%08x\n", VariableHead->Attributes);
+          printf("Property=0x%04x\n",  VariableHead->Property);
+        }
+        printf("Offset:\n0x%04x\n", VariableHead->Offset);
 
         UINT8* VaraiableDefaultBuffer;
         if ((Token & PCD_TYPE_ALL_SET) == (PCD_TYPE_HII|PCD_TYPE_STRING)) {
@@ -295,13 +297,13 @@ int main(int argc, char** argv)
           buf = VaraiableDefaultBuffer;
 
           if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT8)
-            printf("0x%02x (=%d)\n", *(UINT8*)buf, *(UINT8*)buf);
+            printf("Value:\n0x%02x (=%d)\n", *(UINT8*)buf, *(UINT8*)buf);
           else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT16)
-            printf("0x%04x (=%d)\n", *(UINT16*)buf, *(UINT16*)buf);
+            printf("Value:\n0x%04x (=%d)\n", *(UINT16*)buf, *(UINT16*)buf);
           else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT32)
-            printf("0x%08x (=%d)\n", *(UINT32*)buf, *(UINT32*)buf);
+            printf("Value:\n0x%08x (=%d)\n", *(UINT32*)buf, *(UINT32*)buf);
           else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT64)
-            printf("0x%016lx (=%ld)\n", *(UINT64*)buf, *(UINT64*)buf);
+            printf("Value:\n0x%016lx (=%ld)\n", *(UINT64*)buf, *(UINT64*)buf);
         }
         break;
 
@@ -313,11 +315,12 @@ int main(int argc, char** argv)
         if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_POINTER) {
           UINT16 MaxSize = *(UINT16*)&db[pcd_table_header.SizeTableOffset + (SizeTableIndex*4)];
           UINT16 CurrentSize = *(UINT16*)&db[pcd_table_header.SizeTableOffset + (SizeTableIndex*4) + 2];
-          printf("CurrentSize=%d\n", CurrentSize);
-          printf("MaxSize=%d\n", MaxSize);
+          printf("CurrentSize = %d\n", CurrentSize);
+          printf("MaxSize     = %d\n", MaxSize);
           SizeTableIndex++;
           StringTableIdx = (STRING_HEAD *)(db + (Token & PCD_DATABASE_OFFSET_MASK));
           buf = &db[pcd_table_header.StringTableOffset + *StringTableIdx];
+          printf("Value:\n");
           print_buffer(buf, CurrentSize);
         } else {
           printf("Error! Wrong datum type for PCD_TYPE_STRING\n");
@@ -327,13 +330,13 @@ int main(int argc, char** argv)
       case PCD_TYPE_DATA:
         buf = &db[Token & PCD_DATABASE_OFFSET_MASK];
         if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT8)
-          printf("0x%02x (=%d)\n", *(UINT8*)buf, *(UINT8*)buf);
+          printf("Value:\n0x%02x (=%d)\n", *(UINT8*)buf, *(UINT8*)buf);
         else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT16)
-          printf("0x%04x (=%d)\n", *(UINT16*)buf, *(UINT16*)buf);
+          printf("Value:\n0x%04x (=%d)\n", *(UINT16*)buf, *(UINT16*)buf);
         else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT32)
-          printf("0x%08x (=%d)\n", *(UINT32*)buf, *(UINT32*)buf);
+          printf("Value:\n0x%08x (=%d)\n", *(UINT32*)buf, *(UINT32*)buf);
         else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT64)
-          printf("0x%016lx (=%ld)\n", *(UINT64*)buf, *(UINT64*)buf);
+          printf("Value:\n0x%016lx (=%ld)\n", *(UINT64*)buf, *(UINT64*)buf);
         else {
           printf("Error! Wrong datum type for PCD_TYPE_DATA\n");
         }
