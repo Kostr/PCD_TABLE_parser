@@ -287,19 +287,7 @@ int main(int argc, char** argv)
           VaraiableDefaultBuffer = &db[pcd_table_header.StringTableOffset + *StringTableIdx];
           printf("TBD - parser not implemented\n");
         } else {
-          VaraiableDefaultBuffer = &db[VariableHead->DefaultValueOffset];
-          Size = 0;
-          if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT8)
-            Size = 1;
-          else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT16)
-            Size = 2;
-          else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT32)
-            Size = 4;
-          else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT64)
-            Size = 8;
-
-          buf = VaraiableDefaultBuffer;
-
+          buf = &db[VariableHead->DefaultValueOffset];
           if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT8)
             printf("Value:\n0x%02x (=%d)\n", *(UINT8*)buf, *(UINT8*)buf);
           else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT16)
@@ -308,6 +296,8 @@ int main(int argc, char** argv)
             printf("Value:\n0x%08x (=%d)\n", *(UINT32*)buf, *(UINT32*)buf);
           else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT64)
             printf("Value:\n0x%016lx (=%ld)\n", *(UINT64*)buf, *(UINT64*)buf);
+          else
+            printf("Error! Wrong Datum type\n");
         }
         break;
 
@@ -341,9 +331,8 @@ int main(int argc, char** argv)
           printf("Value:\n0x%08x (=%d)\n", *(UINT32*)buf, *(UINT32*)buf);
         else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT64)
           printf("Value:\n0x%016lx (=%ld)\n", *(UINT64*)buf, *(UINT64*)buf);
-        else {
+        else
           printf("Error! Wrong datum type for PCD_TYPE_DATA\n");
-        }
         break;
 
       default:
