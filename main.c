@@ -173,7 +173,10 @@ void print_dynamic_ex(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 local
       }
     }
   }
+}
 
+void print_name_table_info(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 local_token_index)
+{
   if (pcd_table_header->PcdNameTableOffset) {
       printf("TBD - PcdNameTable parsing is not implemented\n");
       /*
@@ -243,6 +246,7 @@ int main(int argc, char** argv)
 
     print_local_token_value(Token);
     print_dynamic_ex(db, &pcd_table_header, i);
+    print_name_table_info(db, &pcd_table_header, i);
 
     if ((Token & PCD_DATABASE_OFFSET_MASK) >= sb.st_size) {
       printf("0 - unitialized\n");
