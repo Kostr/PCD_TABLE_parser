@@ -191,7 +191,32 @@ void print_name_table_info(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 
   }
 }
 
-static int SizeTableIndex=0;
+void print_data_token_value(UINT32 Token, char* db, UINT32 offset)
+{
+  char* buf = &db[offset];
+  if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT8)
+    printf("Value:\n0x%02x (=%d)\n", *(UINT8*)buf, *(UINT8*)buf);
+  else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT16)
+    printf("Value:\n0x%04x (=%d)\n", *(UINT16*)buf, *(UINT16*)buf);
+  else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT32)
+    printf("Value:\n0x%08x (=%d)\n", *(UINT32*)buf, *(UINT32*)buf);
+  else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT64)
+    printf("Value:\n0x%016lx (=%ld)\n", *(UINT64*)buf, *(UINT64*)buf);
+  else
+    printf("Error! Wrong Datum type\n");
+}
+
+UINT32 get_size_table_index(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 LocalTokenIndex)
+{
+  UINT32 SizeTableIndex = 0;
+  for (int i=0; i<LocalTokenIndex; i++) {
+    UINT32 LocalToken = *(UINT32*)&db[pcd_table_header->LocalTokenNumberTableOffset + i*sizeof(UINT32)];
+    if ((LocalToken & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_POINTER) {
+      SizeTableIndex += 1;
+    }
+  }
+  return SizeTableIndex;
+}
 
 
 int main(int argc, char** argv)
@@ -287,17 +312,7 @@ int main(int argc, char** argv)
           VaraiableDefaultBuffer = &db[pcd_table_header.StringTableOffset + *StringTableIdx];
           printf("TBD - parser not implemented\n");
         } else {
-          buf = &db[VariableHead->DefaultValueOffset];
-          if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT8)
-            printf("Value:\n0x%02x (=%d)\n", *(UINT8*)buf, *(UINT8*)buf);
-          else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT16)
-            printf("Value:\n0x%04x (=%d)\n", *(UINT16*)buf, *(UINT16*)buf);
-          else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT32)
-            printf("Value:\n0x%08x (=%d)\n", *(UINT32*)buf, *(UINT32*)buf);
-          else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT64)
-            printf("Value:\n0x%016lx (=%ld)\n", *(UINT64*)buf, *(UINT64*)buf);
-          else
-            printf("Error! Wrong Datum type\n");
+          print_data_token_value(Token, db, VariableHead->DefaultValueOffset);
         }
         break;
 
@@ -307,11 +322,11 @@ int main(int argc, char** argv)
 
       case PCD_TYPE_STRING:
         if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_POINTER) {
+          UINT32 SizeTableIndex = get_size_table_index(db, &pcd_table_header, i);
           UINT16 MaxSize = *(UINT16*)&db[pcd_table_header.SizeTableOffset + (SizeTableIndex*4)];
           UINT16 CurrentSize = *(UINT16*)&db[pcd_table_header.SizeTableOffset + (SizeTableIndex*4) + 2];
           printf("CurrentSize = %d\n", CurrentSize);
           printf("MaxSize     = %d\n", MaxSize);
-          SizeTableIndex++;
           StringTableIdx = (STRING_HEAD *)(db + (Token & PCD_DATABASE_OFFSET_MASK));
           buf = &db[pcd_table_header.StringTableOffset + *StringTableIdx];
           printf("Value:\n");
@@ -322,17 +337,7 @@ int main(int argc, char** argv)
         break;
 
       case PCD_TYPE_DATA:
-        buf = &db[Token & PCD_DATABASE_OFFSET_MASK];
-        if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT8)
-          printf("Value:\n0x%02x (=%d)\n", *(UINT8*)buf, *(UINT8*)buf);
-        else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT16)
-          printf("Value:\n0x%04x (=%d)\n", *(UINT16*)buf, *(UINT16*)buf);
-        else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT32)
-          printf("Value:\n0x%08x (=%d)\n", *(UINT32*)buf, *(UINT32*)buf);
-        else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT64)
-          printf("Value:\n0x%016lx (=%ld)\n", *(UINT64*)buf, *(UINT64*)buf);
-        else
-          printf("Error! Wrong datum type for PCD_TYPE_DATA\n");
+        print_data_token_value(Token, db, (Token & PCD_DATABASE_OFFSET_MASK));
         break;
 
       default:
