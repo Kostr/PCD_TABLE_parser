@@ -195,13 +195,13 @@ void print_data_token_value(UINT32 Token, char* db, UINT32 offset)
 {
   char* buf = &db[offset];
   if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT8)
-    printf("Value:\n0x%02x (=%d)\n", *(UINT8*)buf, *(UINT8*)buf);
+    printf("Value:\n0x%02x (=%u)\n", *(UINT8*)buf, *(UINT8*)buf);
   else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT16)
-    printf("Value:\n0x%04x (=%d)\n", *(UINT16*)buf, *(UINT16*)buf);
+    printf("Value:\n0x%04x (=%u)\n", *(UINT16*)buf, *(UINT16*)buf);
   else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT32)
-    printf("Value:\n0x%08x (=%d)\n", *(UINT32*)buf, *(UINT32*)buf);
+    printf("Value:\n0x%08x (=%u)\n", *(UINT32*)buf, *(UINT32*)buf);
   else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT64)
-    printf("Value:\n0x%016lx (=%ld)\n", *(UINT64*)buf, *(UINT64*)buf);
+    printf("Value:\n0x%016lx (=%lu)\n", *(UINT64*)buf, *(UINT64*)buf);
   else
     printf("Error! Wrong Datum type\n");
 }
