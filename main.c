@@ -161,7 +161,7 @@ void print_dynamic_ex(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 local
     if ((local_token_index+1) == DynamicEx->TokenNumber) {
       if (debug) {
         printf("DynamicEx.ExTokenNumber = 0x%08x\n", DynamicEx->ExTokenNumber);
-        printf("DynamicEx.TokenNumber = 0x%08x\n", DynamicEx->TokenNumber);
+        printf("DynamicEx.TokenNumber = 0x%08x\n", DynamicEx->TokenNumber+1);
         printf("DynamicEx.ExGuidIndex = 0x%08x (", DynamicEx->ExGuidIndex);
         print_guid_by_index(db, pcd_table_header, DynamicEx->ExGuidIndex);
         printf(")\n");
@@ -267,7 +267,7 @@ int main(int argc, char** argv)
   printf("LocalTokenNumberTable:\n");
   for (int i=0; i<pcd_table_header.LocalTokenCount; i++) {
     UINT32 Token = *(UINT32*)&db[pcd_table_header.LocalTokenNumberTableOffset + i*sizeof(UINT32)];
-    printf("\n%d:\n", i);
+    printf("\n%d:\n", i+1);
 
     print_local_token_value(Token);
     print_dynamic_ex(db, &pcd_table_header, i);
