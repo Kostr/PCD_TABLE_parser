@@ -1,3 +1,4 @@
+#include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -218,19 +219,17 @@ UINT32 get_size_table_index(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32
   return SizeTableIndex;
 }
 
+typedef enum {
+  PEI_PCD_DB,
+  DXE_PCD_DB
+} pcd_db_type;
 
-int main(int argc, char** argv)
+int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset)
 {
-  if (argc != 2) {
-    printf("Usage: %s <PCD_DB.raw>\n", argv[0]);
-    printf("Program to parse PCD_DB.raw file\n");
-    return(EXIT_FAILURE);
-  }
-
-  int fd = open(argv[1], O_RDONLY);
+  int fd = open(filename, O_RDONLY);
   if (fd == -1)
   {
-    printf("Error! Can't open file %s\n", argv[1]);
+    printf("Error! Can't open file %s\n", filename);
     return(EXIT_FAILURE);
   }
 
@@ -256,6 +255,14 @@ int main(int argc, char** argv)
   if (fill_pcd_table_header(db, &pcd_table_header))
     return(EXIT_FAILURE);
 
+  if (db_type == PEI_PCD_DB) {
+    printf("\nPEI PCD DB\n");
+    *local_token_offset=0;
+  }
+  else if (db_type == DXE_PCD_DB) {
+    printf("\nDXE PCD DB\n");
+  }
+
   if (debug) {
     print_pcd_table_header(&pcd_table_header);
     printf("_____\n");
@@ -267,7 +274,10 @@ int main(int argc, char** argv)
   printf("LocalTokenNumberTable:\n");
   for (int i=0; i<pcd_table_header.LocalTokenCount; i++) {
     UINT32 Token = *(UINT32*)&db[pcd_table_header.LocalTokenNumberTableOffset + i*sizeof(UINT32)];
-    printf("\n%d:\n", i+1);
+    if ((db_type == DXE_PCD_DB) && (*local_token_offset == -1))
+      printf("\n(PEI Local Token Count + %d):\n", i+1);
+    else
+      printf("\n%d:\n", i+1+(*local_token_offset));
 
     print_local_token_value(Token);
     print_dynamic_ex(db, &pcd_table_header, i);
@@ -348,4 +358,72 @@ int main(int argc, char** argv)
   printf("_____\n");
 
   munmap(db, sb.st_size);
+  *local_token_offset = pcd_table_header.LocalTokenCount;
+  return 0;
+}
+
+
+char* pei_pcd_table_name = '\0';
+char* dxe_pcd_table_name = '\0';
+
+void usage(char* program_name)
+{
+  printf("Usage: parse_pcd_db [--peidb <PEI_PCD_DB.raw>] [--dxedb <DXE_PCD_DB.raw>]\n");
+  printf("Program to parse PCD Database raw files\n");
+  printf("\n");
+  printf("--peidb <PEI_PCD_DB.raw>     - provide PEI PCD database\n");
+  printf("--peidb <DXE_PCD_DB.raw>     - provide DXE PCD database\n");
+}
+
+int main(int argc, char** argv)
+{
+  const struct option longopts[] = {
+    { "peidb", required_argument, NULL, 'p' },
+    { "dxedb", required_argument, NULL, 'd' },
+    { "help",  no_argument,       NULL, 'h' },
+    { NULL, 0, NULL, 0}
+  };
+
+  int c;
+  while((c = getopt_long(argc, argv, "p:d:h", longopts, NULL)) != -1) {
+    switch (c) {
+      case 'p':
+        pei_pcd_table_name = optarg;
+        break;
+      case 'd':
+        dxe_pcd_table_name = optarg;
+        break;
+      case 'h':
+        usage(argv[0]);
+        return(EXIT_SUCCESS);
+        break;
+      default:
+        usage(argv[0]);
+        return(EXIT_FAILURE);
+        break;
+    }
+  }
+
+  if ((!pei_pcd_table_name) && (!dxe_pcd_table_name)) {
+    printf("Error! Provide at least one db file\n\n");
+    usage(argv[0]);
+    return(EXIT_FAILURE);
+  }
+
+
+  int local_token_offset = -1;
+  if (pei_pcd_table_name) {
+    if (parse_pcd_db(pei_pcd_table_name, PEI_PCD_DB, &local_token_offset)) {
+      printf("Error! Can't parse PEI PCD DB\n");
+      return(EXIT_FAILURE);
+    }
+  }
+  if (dxe_pcd_table_name) {
+    if (parse_pcd_db(dxe_pcd_table_name, DXE_PCD_DB, &local_token_offset)) {
+      printf("Error! Can't parse DXE PCD DB\n");
+      return(EXIT_FAILURE);
+    }
+  }
+
+  return(EXIT_SUCCESS);
 }
