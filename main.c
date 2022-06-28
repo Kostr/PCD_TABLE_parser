@@ -417,7 +417,7 @@ char* vpd_filename = '\0';
 
 void usage(char* program_name)
 {
-  printf("Usage: parse_pcd_db [--peidb <PEI_PCD_DB.raw>] [--dxedb <DXE_PCD_DB.raw>]\n");
+  printf("Usage: parse_pcd_db [--peidb <PEI_PCD_DB.raw>] [--dxedb <DXE_PCD_DB.raw>] [--vpd <VPD.bin>]\n");
   printf("Program to parse PCD Database raw files\n");
   printf("\n");
   printf("--peidb <PEI_PCD_DB.raw>     - provide PEI PCD database\n");
