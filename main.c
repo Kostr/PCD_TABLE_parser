@@ -224,7 +224,7 @@ typedef enum {
   DXE_PCD_DB
 } pcd_db_type;
 
-int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset)
+int map_file(char* filename, char** buf, off_t* filesize)
 {
   int fd = open(filename, O_RDONLY);
   if (fd == -1)
@@ -239,17 +239,29 @@ int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset)
     return(EXIT_FAILURE);
   }
 
-  if (sb.st_size < sizeof(PCD_TABLE_HEADER)) {
-    printf("Error! File is too small for PCD database\n");
-    return(EXIT_FAILURE);
-  }
-
-  char *db = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-  if (db == MAP_FAILED){
+  *buf = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  if (*buf == MAP_FAILED){
     printf("Error! Mapping Failed\n");
     return(EXIT_FAILURE);
   }
   close(fd);
+  *filesize = sb.st_size;
+  return(EXIT_SUCCESS);
+}
+
+int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset, char* vpd, off_t vpd_size)
+{
+  char* db;
+  off_t db_size;
+
+  if (map_file(filename, &db, &db_size)) {
+    return(EXIT_FAILURE);
+  }
+
+  if (db_size < sizeof(PCD_TABLE_HEADER)) {
+    printf("Error! File is too small for PCD database\n");
+    return(EXIT_FAILURE);
+  }
 
   PCD_TABLE_HEADER pcd_table_header;
   if (fill_pcd_table_header(db, &pcd_table_header))
@@ -283,9 +295,9 @@ int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset)
     print_dynamic_ex(db, &pcd_table_header, i);
     print_name_table_info(db, &pcd_table_header, i);
 
-    if ((Token & PCD_DATABASE_OFFSET_MASK) >= sb.st_size) {
+    if ((Token & PCD_DATABASE_OFFSET_MASK) >= db_size) {
       printf("0 - unitialized\n");
-      if ((Token & PCD_DATABASE_OFFSET_MASK) >= (sb.st_size + pcd_table_header.UninitDataBaseSize)) {
+      if ((Token & PCD_DATABASE_OFFSET_MASK) >= (db_size + pcd_table_header.UninitDataBaseSize)) {
         printf("(Offset is wrong!)\n");
       }
       continue;
@@ -294,11 +306,13 @@ int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset)
     int Size = 0;
     STRING_HEAD* StringTableIdx;
     char* buf;
+    VPD_HEAD* VpdHead;
+    VARIABLE_HEAD* VariableHead;
     switch (Token & PCD_TYPE_ALL_SET) {
       case PCD_TYPE_HII:
       case PCD_TYPE_HII|PCD_TYPE_STRING:
         printf("HII VARIABLE\n");
-        VARIABLE_HEAD* VariableHead = (VARIABLE_HEAD *)(db + (Token & PCD_DATABASE_OFFSET_MASK));
+        VariableHead = (VARIABLE_HEAD *)(db + (Token & PCD_DATABASE_OFFSET_MASK));
         printf("Guid:\n");
         print_guid_by_index(db, &pcd_table_header, VariableHead->GuidTableIndex);
         printf("\n");
@@ -327,7 +341,43 @@ int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset)
         break;
 
       case PCD_TYPE_VPD:
-        printf("TBD - parser not implemented\n");
+        VpdHead = (VPD_HEAD *)(db + (Token & PCD_DATABASE_OFFSET_MASK));
+        printf("VPD offset = 0x%08x (=%d)\n", VpdHead->Offset, VpdHead->Offset);
+        if (vpd) {
+          if (VpdHead->Offset > vpd_size) {
+            printf("Error! VPD offset is outside of VPD block\n");
+            break;
+          }
+        }
+        if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_POINTER) {
+          UINT32 SizeTableIndex = get_size_table_index(db, &pcd_table_header, i);
+          UINT16 MaxSize = *(UINT16*)&db[pcd_table_header.SizeTableOffset + (SizeTableIndex*4)];
+          UINT16 CurrentSize = *(UINT16*)&db[pcd_table_header.SizeTableOffset + (SizeTableIndex*4) + 2];
+          printf("CurrentSize = %d\n", CurrentSize);
+          printf("MaxSize     = %d\n", MaxSize);
+          if (vpd) {
+              printf("Value:\n");
+              buf = &vpd[VpdHead->Offset];
+              print_buffer(buf, CurrentSize);
+          }
+        } else {
+          if (vpd) {
+            print_data_token_value(Token, vpd, VpdHead->Offset);
+          } else {
+            if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT8)
+              printf("Size = 1\n");
+            else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT16)
+              printf("Size = 2\n");
+            else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT32)
+              printf("Size = 4\n");
+            else if ((Token & PCD_DATUM_TYPE_ALL_SET) == PCD_DATUM_TYPE_UINT64)
+              printf("Size = 8\n");
+            else
+              printf("Error! Wrong datum type\n");
+          }
+        }
+        if (!vpd)
+          printf("Provide VPD file to print actual data\n");
         break;
 
       case PCD_TYPE_STRING:
@@ -357,7 +407,7 @@ int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset)
   }
   printf("_____\n");
 
-  munmap(db, sb.st_size);
+  munmap(db, db_size);
   *local_token_offset = pcd_table_header.LocalTokenCount;
   return 0;
 }
@@ -365,6 +415,7 @@ int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset)
 
 char* pei_pcd_table_name = '\0';
 char* dxe_pcd_table_name = '\0';
+char* vpd_filename = '\0';
 
 void usage(char* program_name)
 {
@@ -373,6 +424,7 @@ void usage(char* program_name)
   printf("\n");
   printf("--peidb <PEI_PCD_DB.raw>     - provide PEI PCD database\n");
   printf("--peidb <DXE_PCD_DB.raw>     - provide DXE PCD database\n");
+  printf("--vpd   <VPD.bin>            - provide VPD binary\n");
 }
 
 int main(int argc, char** argv)
@@ -380,18 +432,22 @@ int main(int argc, char** argv)
   const struct option longopts[] = {
     { "peidb", required_argument, NULL, 'p' },
     { "dxedb", required_argument, NULL, 'd' },
+    { "vpd"  , required_argument, NULL, 'v' },
     { "help",  no_argument,       NULL, 'h' },
     { NULL, 0, NULL, 0}
   };
 
   int c;
-  while((c = getopt_long(argc, argv, "p:d:h", longopts, NULL)) != -1) {
+  while((c = getopt_long(argc, argv, "p:d:v:h", longopts, NULL)) != -1) {
     switch (c) {
       case 'p':
         pei_pcd_table_name = optarg;
         break;
       case 'd':
         dxe_pcd_table_name = optarg;
+        break;
+      case 'v':
+        vpd_filename = optarg;
         break;
       case 'h':
         usage(argv[0]);
@@ -410,20 +466,31 @@ int main(int argc, char** argv)
     return(EXIT_FAILURE);
   }
 
+  char* vpd = NULL;
+  off_t vpd_size = 0;
+  if (vpd_filename) {
+    if (map_file(vpd_filename, &vpd, &vpd_size)) {
+      printf("Error! Can't load VPD file\n");
+      return(EXIT_FAILURE);
+    }
+  }
 
   int local_token_offset = -1;
   if (pei_pcd_table_name) {
-    if (parse_pcd_db(pei_pcd_table_name, PEI_PCD_DB, &local_token_offset)) {
+    if (parse_pcd_db(pei_pcd_table_name, PEI_PCD_DB, &local_token_offset, vpd, vpd_size)) {
       printf("Error! Can't parse PEI PCD DB\n");
       return(EXIT_FAILURE);
     }
   }
   if (dxe_pcd_table_name) {
-    if (parse_pcd_db(dxe_pcd_table_name, DXE_PCD_DB, &local_token_offset)) {
+    if (parse_pcd_db(dxe_pcd_table_name, DXE_PCD_DB, &local_token_offset, vpd, vpd_size)) {
       printf("Error! Can't parse DXE PCD DB\n");
       return(EXIT_FAILURE);
     }
   }
+
+  if (vpd)
+    munmap(vpd, vpd_size);
 
   return(EXIT_SUCCESS);
 }

@@ -72,6 +72,10 @@ typedef struct {
   UINT16    Reserved;
 } VARIABLE_HEAD;
 
+typedef struct {
+  UINT32    Offset;
+} VPD_HEAD;
+
 #define PCD_TYPE_SHIFT  28
 
 #define PCD_TYPE_DATA    (0x0U << PCD_TYPE_SHIFT)
