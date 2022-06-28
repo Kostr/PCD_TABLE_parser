@@ -13,8 +13,6 @@
 #include "pcd_table.h"
 #include "utils.h"
 
-//const char* filename = "Build/OvmfX64/DEBUG_GCC5/X64/MdeModulePkg/Universal/PCD/Pei/Pcd/OUTPUT/PEIPcdDataBase.raw";
-//const char* filename = "Build/OvmfX64/DEBUG_GCC5/X64/MdeModulePkg/Universal/PCD/Dxe/Pcd/OUTPUT/DXEPcdDataBase.raw";
 
 const bool debug = false;
 
@@ -425,6 +423,12 @@ void usage(char* program_name)
   printf("--peidb <PEI_PCD_DB.raw>     - provide PEI PCD database\n");
   printf("--peidb <DXE_PCD_DB.raw>     - provide DXE PCD database\n");
   printf("--vpd   <VPD.bin>            - provide VPD binary\n");
+  printf("\n");
+  printf("Example:\n");
+  printf("parse_pcd_db \\\n");
+  printf(" --peidb \"Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Universal/PCD/Pei/Pcd/OUTPUT/PEIPcdDataBase.raw\" \\\n");
+  printf(" --dxedb \"Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Universal/PCD/Dxe/Pcd/OUTPUT/DXEPcdDataBase.raw\" \\\n");
+  printf(" --vpd   \"Build/OvmfX64/RELEASE_GCC5/FV/8C3D856A-9BE6-468E-850A-24F7A8D38E08.bin\"\n");
 }
 
 int main(int argc, char** argv)
