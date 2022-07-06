@@ -421,7 +421,7 @@ void usage(char* program_name)
   printf("Program to parse PCD Database raw files\n");
   printf("\n");
   printf("--peidb <PEI_PCD_DB.raw>     - provide PEI PCD database\n");
-  printf("--peidb <DXE_PCD_DB.raw>     - provide DXE PCD database\n");
+  printf("--dxedb <DXE_PCD_DB.raw>     - provide DXE PCD database\n");
   printf("--vpd   <VPD.bin>            - provide VPD binary\n");
   printf("\n");
   printf("Example:\n");
