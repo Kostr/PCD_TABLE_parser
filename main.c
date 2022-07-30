@@ -290,7 +290,7 @@ int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset, c
       printf("\n%d:\n", i+1+(*local_token_offset));
 
     print_local_token_value(Token);
-    print_dynamic_ex(db, &pcd_table_header, i);
+    print_dynamic_ex(db, &pcd_table_header, i+(*local_token_offset));
     print_name_table_info(db, &pcd_table_header, i);
 
     if ((Token & PCD_DATABASE_OFFSET_MASK) >= db_size) {
