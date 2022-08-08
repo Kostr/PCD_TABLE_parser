@@ -135,6 +135,22 @@ struct guid_name predefined_guids[] = {
   {
     "0e8e9cba-fed6-459e-8027662c94f4660e",
     "gTpmTrustedAppTokenSpaceGuid"
+  },
+  {
+    "93bb96af-b9f2-4eb8-9462e0ba74564236",
+    "gUefiOvmfPkgTokenSpaceGuid"
+  },
+  {
+    "914aebe7-4635-459b-aa1c11e219b03a10",
+    "gEfiMdePkgTokenSpaceGuid"
+  },
+  {
+    "40e064b2-0ae0-48b1-a07df8cf1e1a2310",
+    "gEfiNetworkPkgTokenSpaceGuid"
+  },
+  {
+    "150cab53-ad47-4385-b5ddbcfc76bacaf0",
+    "gUefiLessonsPkgTokenSpaceGuid"
   }
 };
 
