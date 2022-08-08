@@ -218,6 +218,9 @@ UINT32 get_size_table_index(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32
 
 char* hii_attributes_to_string(UINT32 attr)
 {
+  if (!attr)
+    return "NV+RT+BS";
+
   static char attr_string[20] = {0};
   memset(attr_string, 0, sizeof(attr_string));
 
