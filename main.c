@@ -177,16 +177,15 @@ void print_dynamic_ex(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 local
 void print_name_table_info(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32 local_token_index)
 {
   if (pcd_table_header->PcdNameTableOffset) {
-      printf("TBD - PcdNameTable parsing is not implemented\n");
-      /*
-      PCD_NAME_INDEX PcdNameIndex = *(PCD_NAME_INDEX*)&db[pcd_table_header.PcdNameTableOffset + sizeof(PCD_NAME_INDEX)*(DynamicEx[i].TokenNumber-1)];
+    PCD_NAME_INDEX PcdNameIndex = *(PCD_NAME_INDEX*)&db[pcd_table_header->PcdNameTableOffset + sizeof(PCD_NAME_INDEX)*(local_token_index)];
+    if (debug) {
       printf("PcdNameIndex.TokenSpaceCNameIndex=%d\n", PcdNameIndex.TokenSpaceCNameIndex);
       printf("PcdNameIndex.PcdCNameIndex=%d\n", PcdNameIndex.PcdCNameIndex);
-      char* TokenSpaceName = (char*)&db[pcd_table_header.StringTableOffset + PcdNameIndex.TokenSpaceCNameIndex];
-      char* PcdName = (char*)&db[pcd_table_header.StringTableOffset + PcdNameIndex.PcdCNameIndex];
-      printf("TokenSpaceName = %s\n", TokenSpaceName);
-      printf("PcdName = %s\n", PcdName);
-      */
+    }
+    char* TokenSpaceName = (char*)&db[pcd_table_header->StringTableOffset + PcdNameIndex.TokenSpaceCNameIndex];
+    char* PcdName = (char*)&db[pcd_table_header->StringTableOffset + PcdNameIndex.PcdCNameIndex];
+    printf("TokenSpaceName = %s\n", TokenSpaceName);
+    printf("PcdName = %s\n", PcdName);
   }
 }
 
