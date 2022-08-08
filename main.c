@@ -216,6 +216,32 @@ UINT32 get_size_table_index(char* db, PCD_TABLE_HEADER* pcd_table_header, UINT32
   return SizeTableIndex;
 }
 
+char* hii_attributes_to_string(UINT32 attr)
+{
+  static char attr_string[20] = {0};
+  memset(attr_string, 0, sizeof(attr_string));
+
+  if (attr & EFI_VARIABLE_NON_VOLATILE)
+    strcat(attr_string, "+NV");
+
+  if (attr & EFI_VARIABLE_RUNTIME_ACCESS)
+    strcat(attr_string, "+RT");
+
+  if (attr & EFI_VARIABLE_BOOTSERVICE_ACCESS)
+    strcat(attr_string, "+BS");
+
+  if (attr & EFI_VARIABLE_HARDWARE_ERROR_RECORD)
+    strcat(attr_string, "+HR");
+
+  if (attr & EFI_VARIABLE_AUTHENTICATED_WRITE_ACCESS)
+    strcat(attr_string, "+AW");
+
+  for (int i=0; i<(sizeof(attr_string)-1); i++)
+    attr_string[i]=attr_string[i+1];
+
+  return attr_string;
+}
+
 typedef enum {
   PEI_PCD_DB,
   DXE_PCD_DB
@@ -322,9 +348,10 @@ int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset, c
         print_buffer((UINT8*)Name, (NameLength+1)*2);
         if (debug) {
           printf("DefaultValueOffset=0x%08x\n", VariableHead->DefaultValueOffset);
-          printf("Attributes=0x%08x\n", VariableHead->Attributes);
           printf("Property=0x%04x\n",  VariableHead->Property);
         }
+        printf("Attributes:\n");
+        printf("%s\n", hii_attributes_to_string(VariableHead->Attributes));
         printf("Offset:\n0x%04x\n", VariableHead->Offset);
 
         UINT8* VaraiableDefaultBuffer;
