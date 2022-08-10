@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <limits.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -34,7 +36,7 @@ int fill_pcd_table_header(char* db, PCD_TABLE_HEADER* pcd_table_header)
       pcd_table_header->BuildVersion = pcd_table_header_v6->BuildVersion;
       pcd_table_header->Length = pcd_table_header_v6->Length;
       pcd_table_header->SystemSkuId = pcd_table_header_v6->SystemSkuId;
-      pcd_table_header->LengthForAllSkus = 0;
+      pcd_table_header->LengthForAllSkus = pcd_table_header_v6->Length;
       pcd_table_header->UninitDataBaseSize = pcd_table_header_v6->UninitDataBaseSize;
       pcd_table_header->LocalTokenNumberTableOffset = pcd_table_header_v6->LocalTokenNumberTableOffset;
       pcd_table_header->ExMapTableOffset = pcd_table_header_v6->ExMapTableOffset;
@@ -245,6 +247,34 @@ char* hii_attributes_to_string(UINT32 attr)
   return attr_string;
 }
 
+int apply_sku_delta(char* db, PCD_TABLE_HEADER* pcd_table_header, uint64_t sku)
+{
+  bool sku_found = false;
+  uint32_t pcd_table_end = (pcd_table_header->Length + 7) & (~7);
+  while ((pcd_table_end + sizeof(PCD_DATABASE_SKU_DELTA)) <= pcd_table_header->LengthForAllSkus) {
+    PCD_DATABASE_SKU_DELTA* sku_delta = (PCD_DATABASE_SKU_DELTA*)&db[pcd_table_end];
+    if ((sku == sku_delta->SkuId) && (!sku_delta->SkuIdCompared)) {
+      uint32_t delta_offset = pcd_table_end + sizeof(PCD_DATABASE_SKU_DELTA);
+      while (delta_offset < (pcd_table_end + sku_delta->Length)) {
+        PCD_DATA_DELTA* delta = (PCD_DATA_DELTA*)&db[delta_offset];
+        db[delta->Offset] = delta->Value;
+        if (debug)
+          printf("apply sku 0x%lx delta: offset %x, val %x\n", sku, delta->Offset, delta->Value);
+        delta_offset += sizeof(PCD_DATA_DELTA);
+      }
+      sku_found = true;
+      break;
+    } else {
+      pcd_table_end = (pcd_table_end + sku_delta->Length + 7) & (~7);
+    }
+  }
+  if (!sku_found) {
+    printf("Error! No delta table for requested SKU 0x%lx\n", sku);
+    return(EXIT_FAILURE);
+  }
+  return 0;
+}
+
 typedef enum {
   PEI_PCD_DB,
   DXE_PCD_DB
@@ -265,7 +295,7 @@ int map_file(char* filename, char** buf, off_t* filesize)
     return(EXIT_FAILURE);
   }
 
-  *buf = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  *buf = mmap(NULL, sb.st_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
   if (*buf == MAP_FAILED){
     printf("Error! Mapping Failed\n");
     return(EXIT_FAILURE);
@@ -275,7 +305,7 @@ int map_file(char* filename, char** buf, off_t* filesize)
   return(EXIT_SUCCESS);
 }
 
-int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset, char* vpd, off_t vpd_size)
+int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset, char* vpd, off_t vpd_size, uint64_t sku)
 {
   char* db;
   off_t db_size;
@@ -308,6 +338,28 @@ int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset, c
     print_pcd_table_guids(db, &pcd_table_header);
     printf("_____\n");
   }
+
+  bool sku_found = false;
+  uint64_t sku_table_size = *(UINT64*)&db[pcd_table_header.SkuIdTableOffset];
+  printf("\nAvailable SKUs:");
+  for (int i=0; i<sku_table_size; i++) {
+    uint64_t sku_number = *(UINT64*)&db[pcd_table_header.SkuIdTableOffset + sizeof(sku_table_size) + i*sizeof(UINT64)];
+    printf(" 0x%lx", sku_number);
+    if (sku_number == sku) {
+      sku_found = true;
+    }
+  }
+  printf("\n");
+
+  if (sku) {
+    if (!sku_found) {
+      printf("Error! Requested SKU 0x%lx is not found in the SKU table\n", sku);
+      return(EXIT_FAILURE);
+    }
+    if (apply_sku_delta(db, &pcd_table_header, sku))
+      return(EXIT_FAILURE);
+  }
+  printf("_____\n\n");
 
   printf("LocalTokenNumberTable:\n");
   for (int i=0; i<pcd_table_header.LocalTokenCount; i++) {
@@ -439,25 +491,40 @@ int parse_pcd_db(char* filename, pcd_db_type db_type, int* local_token_offset, c
   return 0;
 }
 
+int str_to_uint64(const char *str, uint64_t* result) {
+  char *endptr;
+  errno = 0;
+  *result = (uint64_t) strtoull(str, &endptr, 0);
+  if (endptr == str) {
+    return 1;
+  }
+  if ((*result == ULLONG_MAX) && (errno == ERANGE)) {
+    return 2;
+  }
+  return 0;
+}
 
 char* pei_pcd_table_name = '\0';
 char* dxe_pcd_table_name = '\0';
 char* vpd_filename = '\0';
+uint64_t sku = 0;
 
 void usage(char* program_name)
 {
-  printf("Usage: parse_pcd_db [--peidb <PEI_PCD_DB.raw>] [--dxedb <DXE_PCD_DB.raw>] [--vpd <VPD.bin>]\n");
+  printf("Usage: parse_pcd_db [--peidb <PEI_PCD_DB.raw>] [--dxedb <DXE_PCD_DB.raw>] [--vpd <VPD.bin>] [--sku <SKU_number>]\n");
   printf("Program to parse PCD Database raw files\n");
   printf("\n");
   printf("--peidb <PEI_PCD_DB.raw>     - provide PEI PCD database\n");
   printf("--dxedb <DXE_PCD_DB.raw>     - provide DXE PCD database\n");
   printf("--vpd   <VPD.bin>            - provide VPD binary\n");
+  printf("--sku   <SKU_number>         - provide SKU number\n");
   printf("\n");
   printf("Example:\n");
   printf("parse_pcd_db \\\n");
   printf(" --peidb \"Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Universal/PCD/Pei/Pcd/OUTPUT/PEIPcdDataBase.raw\" \\\n");
   printf(" --dxedb \"Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Universal/PCD/Dxe/Pcd/OUTPUT/DXEPcdDataBase.raw\" \\\n");
-  printf(" --vpd   \"Build/OvmfX64/RELEASE_GCC5/FV/8C3D856A-9BE6-468E-850A-24F7A8D38E08.bin\"\n");
+  printf(" --vpd   \"Build/OvmfX64/RELEASE_GCC5/FV/8C3D856A-9BE6-468E-850A-24F7A8D38E08.bin\" \\\n");
+  printf(" --sku   0x55\n");
 }
 
 int main(int argc, char** argv)
@@ -466,12 +533,14 @@ int main(int argc, char** argv)
     { "peidb", required_argument, NULL, 'p' },
     { "dxedb", required_argument, NULL, 'd' },
     { "vpd"  , required_argument, NULL, 'v' },
+    { "sku"  , required_argument, NULL, 's' },
     { "help",  no_argument,       NULL, 'h' },
     { NULL, 0, NULL, 0}
   };
 
   int c;
-  while((c = getopt_long(argc, argv, "p:d:v:h", longopts, NULL)) != -1) {
+  char* end;
+  while((c = getopt_long(argc, argv, "p:d:v:s:h", longopts, NULL)) != -1) {
     switch (c) {
       case 'p':
         pei_pcd_table_name = optarg;
@@ -481,6 +550,12 @@ int main(int argc, char** argv)
         break;
       case 'v':
         vpd_filename = optarg;
+        break;
+      case 's':
+        if (str_to_uint64(optarg, &sku)) {
+          printf("Error! SKU argument is not a valid number\n");
+          return(EXIT_FAILURE);
+        }
         break;
       case 'h':
         usage(argv[0]);
@@ -510,13 +585,13 @@ int main(int argc, char** argv)
 
   int local_token_offset = -1;
   if (pei_pcd_table_name) {
-    if (parse_pcd_db(pei_pcd_table_name, PEI_PCD_DB, &local_token_offset, vpd, vpd_size)) {
+    if (parse_pcd_db(pei_pcd_table_name, PEI_PCD_DB, &local_token_offset, vpd, vpd_size, sku)) {
       printf("Error! Can't parse PEI PCD DB\n");
       return(EXIT_FAILURE);
     }
   }
   if (dxe_pcd_table_name) {
-    if (parse_pcd_db(dxe_pcd_table_name, DXE_PCD_DB, &local_token_offset, vpd, vpd_size)) {
+    if (parse_pcd_db(dxe_pcd_table_name, DXE_PCD_DB, &local_token_offset, vpd, vpd_size, sku)) {
       printf("Error! Can't parse DXE PCD DB\n");
       return(EXIT_FAILURE);
     }

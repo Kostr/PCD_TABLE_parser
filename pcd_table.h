@@ -105,4 +105,17 @@ typedef struct {
 
 #define PCD_DATABASE_OFFSET_MASK  (~(PCD_TYPE_ALL_SET | PCD_DATUM_TYPE_ALL_SET | PCD_DATUM_TYPE_UINT8_BOOLEAN))
 
+typedef struct {
+  UINT32    Offset : 24;
+  UINT32    Value  : 8;
+} PCD_DATA_DELTA;
+
+#pragma pack(1)
+typedef struct {
+  SKU_ID    SkuId;
+  SKU_ID    SkuIdCompared;
+  UINT32    Length;
+} PCD_DATABASE_SKU_DELTA;
+#pragma pack()
+
 #endif
